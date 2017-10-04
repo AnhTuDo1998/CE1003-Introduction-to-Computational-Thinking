@@ -1,1 +1,1 @@
-bot: python3 NTUbot.py
+bot: python NTUbot.py

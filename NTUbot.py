@@ -1,5 +1,5 @@
-from selenium import webdriver
-from selenium.common.exceptions import NoSuchElementException
+from Selenium import webdriver
+from Selenium.common.exceptions import NoSuchElementException
 import numpy as np
 import telepot
 import csv 
@@ -20,11 +20,6 @@ chrome_options.binary_location = GOOGLE_CHROME_BIN
 chrome_options.add_argument('--disable-gpu')
 chrome_options.add_argument('--no-sandbox')
 driver = webdriver.Chrome(executable_path=CHROMEDRIVER_PATH, chrome_options=chrome_options)
-
-
-
-
-
 
 step = 0                                                                        #State variable to indicate which step users is at and for telepot to refer to
 Retrieved_Course =''

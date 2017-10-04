@@ -1,1 +1,1 @@
-web: python3 NTUbot.py
+bot: python3 NTUbot.py

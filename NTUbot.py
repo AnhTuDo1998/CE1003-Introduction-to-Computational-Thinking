@@ -7,15 +7,6 @@ from datetime import datetime, timedelta
 from telepot.loop import MessageLoop
 from telepot.namedtuple import ReplyKeyboardMarkup, KeyboardButton
 import os
-from pydrive.auth import GoogleAuth
-from pydrive.drive import GoogleDrive
-
-gauth = GoogleAuth()
-gauth.LocalWebserverAuth()
-
-drive = GoogleDrive(gauth)
-link =''
-
 
 #Intializing Telegram Bot:
 #########################################################################
@@ -227,21 +218,6 @@ def ical(newlist):
     convert = driver.find_element_by_xpath("/html/body/article/section/div[1]/form/div/input")
     convert.click()
     path_ics = os.path.abspath("calendar.ics")
-    icalendar = drive.CreateFile()
-    icalendar.SetContentFile(path_ics)
-    icalendar.Upload()
-    file_id = icalendar['id']
-    permission = icalendar.InsertPermission({
-        'type':'anyone',
-        'value': 'anyone',
-        'role': 'reader'})
-
-    #To use the image in Gsheet we need to modify the link as follows
-    link=icalendar['alternateLink']
-    link=link.split('?')[0]
-    link=link.split('/')[-2]
-    link='https://docs.google.com/uc?export=download&id='+link
-    print (link)
     
     
 

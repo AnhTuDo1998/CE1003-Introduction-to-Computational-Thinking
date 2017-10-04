@@ -1,1 +1,1 @@
-web: gunicorn NTUiCal
+web: python NTUiCal.py

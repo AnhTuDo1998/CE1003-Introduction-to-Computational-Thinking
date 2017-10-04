@@ -1,5 +1,5 @@
-from Selenium import webdriver
-from Selenium.common.exceptions import NoSuchElementException
+from selenium import webdriver
+from selenium.common.exceptions import NoSuchElementException
 import numpy as np
 import telepot
 import csv 

@@ -1,1 +1,1 @@
-web: python NTUiCal.py
+web: python3 NTUbot.py

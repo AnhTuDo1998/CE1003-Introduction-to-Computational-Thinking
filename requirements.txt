@@ -2,6 +2,7 @@ numpy == 1.13.1
 telepot == 12.3
 selenium == 3.5.0
 pyDrive == 1.3.1
+chromedriver
 
 
 

@@ -19,7 +19,7 @@ print(bot.getMe())
 chrome_bin = os.environ.get('GOOGLE_CHROME_BIN', None)
 opts = ChromeOptions()
 opts.binary_location = chrome_bin
-self.selenium = webdriver.Chrome(executable_path="chromedriver", chrome_options=opts )
+driver = webdriver.Chrome(executable_path="chromedriver", chrome_options=opts )
 
 step = 0                                                                        #State variable to indicate which step users is at and for telepot to refer to
 Retrieved_Course =''

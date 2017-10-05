@@ -16,10 +16,7 @@ bot = telepot.Bot(token)
 print(bot.getMe())
 
 #Initializing Chrome webdriver:
-chrome_bin = os.environ.get('GOOGLE_CHROME_BIN', None)
-opts = ChromeOptions()
-opts.binary_location = chrome_bin
-driver = webdriver.Chrome(chrome_options=opts, service_args=["--verbose"])
+driver = webdriver.PhantomJS()
 
 step = 0                                                                        #State variable to indicate which step users is at and for telepot to refer to
 Retrieved_Course =''

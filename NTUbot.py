@@ -17,6 +17,7 @@ print(bot.getMe())
 
 #Initializing Chrome webdriver:
 driver = webdriver.PhantomJS()
+print ("Hi")
 
 step = 0                                                                        #State variable to indicate which step users is at and for telepot to refer to
 Retrieved_Course =''

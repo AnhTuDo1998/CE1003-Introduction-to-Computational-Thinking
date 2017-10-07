@@ -1,2 +1,1 @@
-worker: python NTUbot.py
-web: python NTUbot.py
+worker: python TheForce5.py

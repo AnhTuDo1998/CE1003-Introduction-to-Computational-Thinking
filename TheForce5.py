@@ -230,7 +230,7 @@ def on_callback_query(msg):
 def timetable_extract(Courseinput):
     global ModulesName
     # Problem 1: driver not working (Issue of path of driver)
-    driver = webdriver.Chrome()                                             # Run chrome
+    driver = webdriver.PhantomJS()                                             # Run chrome
     driver.implicitly_wait(5)
     driver.get("https://wish.wis.ntu.edu.sg/webexe/owa/aus_schedule.main")  # Chrome go to website
     

@@ -6,6 +6,7 @@
 # 1.
 # Limitation:
 # 1) The bot can only work on this Semester
+#Improvements: Working for other modules from other schools (like LG9001)
 #########################################################################
 
 import sys
@@ -228,7 +229,7 @@ def on_callback_query(msg):
             Modules_6b = ModulesName[index_6b]
  
             for Module_6b in Modules_6b[1:]:
-                code_segment = "[InlineKeyboardButton(text='{}', callback_data='{}')],".format(Module_6b,modulecounter_6b)
+                code_segment = '[InlineKeyboardButton(text="""{}""", callback_data="{}")],'.format(Module_6b,modulecounter_6b)
                 markup_code = markup_code + code_segment
                 modulecounter_6b += 1
             markup_code = markup_code[:-1] + "])"
@@ -281,7 +282,7 @@ def on_callback_query(msg):
 def timetable_extract(Courseinput):
     global ModulesName
     # Problem 1: driver not working (Issue of path of driver)
-    driver = webdriver.Chrome()                                             # Run chrome
+    driver = webdriver.PhantomJS()                                             # Run chrome
     driver.implicitly_wait(5)
     driver.get("https://wish.wis.ntu.edu.sg/webexe/owa/aus_schedule.main")  # Chrome go to website
     
@@ -304,12 +305,11 @@ def timetable_extract(Courseinput):
         Retrieved_Course = (Retrieved_Course.text)
         
         Alltext = []                                                            # Create empty set
-        tablecontents = driver.find_elements_by_tag_name("TD")                  # Find element of "INDEX, TYPE, GROUP, DAY, TIME, VENUE, REMARK"
+        tablecontents = driver.find_elements_by_xpath("/html/body/center/table[2]/tbody/tr/td")                  # Find element of "INDEX, TYPE, GROUP, DAY, TIME, VENUE, REMARK"
 
         for elements in tablecontents:                                          # Find each string:
             elements = elements.text                                            # Convert the retrieved element to text form
             Alltext.append(elements)                                            # Input all text into an array
-        del(Alltext[0:5])                                                       # Remove elements that are not in the table
 ##        print(Alltext)                                                          ## Check that list is correct
 
         for UserModulesData in ModulesData:                               # Add course data/name to MAIN LIST

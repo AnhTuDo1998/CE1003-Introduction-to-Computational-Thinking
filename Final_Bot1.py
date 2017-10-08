@@ -503,7 +503,7 @@ def ICal_Generator(finallist,finalname):
 
 # Telebot Function 2
 ################################################################################################
-Token = "477217717:AAEY9hYjc2RDE4nXeOd8VBeYBP_kgX43-lA"             # Token from command line
+Token = "388718978:AAEUppjISCz8eVq_j3b8owag04-E95y1PRk"             # Token from command line
 bot = telepot.Bot(Token)
 MessageLoop(bot, handle).run_as_thread()
 

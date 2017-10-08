@@ -1,11 +1,13 @@
-#####Improvements V.5.0
-#1. Add in error handling for wrong index group (Done by Jesslyn already lmao)
-#2. Add in Converter and script for converting our csv to ics file (1 - variable declare
-#3. Fix error in switching tab ([-1] to always select newest window or tab)
-#4. Slow computer solved by wait implicitly 5s, can adjust to other time if needed.
-#5 Problem worth solving : How to send file via telegram, how to restart the program after the user is finish and keep it for next user ?
-#6 Resolve issue of other modules than SCSE
-#7 Fixed send Document
+#########################################################################
+#### NTU ICalendar Bot
+# Function: By providing the user course code and class index, the bot will
+#           an ICalendar
+# Steps :
+# 1.
+# Limitation:
+# 1) The bot can only work on this Semester
+#########################################################################
+
 import sys
 sys.path.append('.')
 sys.path.append('../')
@@ -13,7 +15,7 @@ import time
 import telepot
 from telepot.loop import MessageLoop
 from telepot.namedtuple import InlineKeyboardMarkup, InlineKeyboardButton
-
+import requests
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException 
 import numpy as np
@@ -23,18 +25,17 @@ from convert import Convert
 
 # 1. Naming and Setting Variables
 ###########################################################################
-ModulesData = []                                    # To contain every module timetable in list format
-ModulesName = []                                    # To contain the names of modules
+# Variables for Modules Name,Timetable,index group of every user respectively
+ModulesData = []                                    
+ModulesName = []                                   
 ClassIndexName = []
-
-# Set all flags to false
-def reset_flags():
-    global getCal_flag, CourseCode_flag, CheckCourse_flag, ClassIndex_flag,\
-           ExtraOptions_flag, Remove_flag, Generate_flag
-    getCal_flag = CourseCode_flag = CheckCourse_flag = ClassIndex_flag =\
-                  ExtraOptions_flag = Remove_flag = Generate_flag = False
-
-reset_flags()                                       # Ensure all flags are initialized and set to false
+# List that consists of names of all flags (flag are to ensure code runs in order)
+All_flags = ["getCal_flag", "CourseCode_flag", "CheckCourse_flag", "ClassIndex_flag",\
+             "ExtraOptions_flag", "Remove_flag", "Generate_flag"]
+# Ensure all flags are initialized and empty
+for flag in All_flags:
+    set_empty = flag + " = []"
+    exec (set_empty)
 
 #Initializing Converter for CSV to ICS file,
 #each variable equivalent to a column in the csv file generated
@@ -44,16 +45,55 @@ convert.SAVE_LOCATION = 'calendar.ics'
 convert.HEADER_COLUMNS_TO_SKIP = 0
 
 convert.NAME = 0
-convert.START_DATE = 2
-convert.END_DATE = 4
-convert.DESCRIPTION = 6
-convert.LOCATION = 7
+convert.START_DATE = 1
+convert.END_DATE = 2
+convert.DESCRIPTION = 3
+convert.LOCATION = 4
 
-# 2. Telebot Functions A
+
+#2. Telebot Functions A
 ###########################################################################
+#To identify which part of the list is the user data located
+def UserData(index_UD):
+    global ModulesName, ModulesData, ClassIndexName
+    for UserModulesName_UD in ModulesName:                 # ModulesName can be replace with ModulesData                        
+        counter_UD = 0
+        if UserModulesName_UD[0] == index_UD:
+            break
+        else:
+            counter_UD += 1
+    return counter_UD
+
+# Set all flags with a specific chat_id to empty
+def reset_flags(index_RS):
+    global getCal_flag, CourseCode_flag, CheckCourse_flag, ClassIndex_flag,\
+           ExtraOptions_flag, Remove_flag, Generate_flag
+    index_RS = int(index_RS)
+    for flag_RS in All_flags:
+        flag_type_RS = eval(flag_RS)
+        if index_RS in flag_type_RS:
+            command_RS = flag_RS + ".remove(index_RS)"
+            eval (command_RS)
+
+# To remove any data on modules for each user
+def reset_data(chat_id_RD):
+    global ModulesName, ModulesData, ClassIndexName
+    try:
+        index_RD = UserData(chat_id_RD)
+        del(ModulesName[index_RD])
+        del(ModulesData[index_RD])
+        del(ClassIndexName[index_RD])
+        ModulesName.append([chat_id_RD])
+        ModulesData.append([chat_id_RD])
+        ClassIndexName.append([chat_id_RD])
+    except:
+        ModulesName.append([chat_id_RD])
+        ModulesData.append([chat_id_RD])
+        ClassIndexName.append([chat_id_RD])
 
 # For every message through telegram, it gets filter out here (according to message type)
 def handle(msg):
+    global ModulesName, ModulesData, ClassIndexName
     global content_type, chat_type, chat_id, flavor
     global ExtraOptions_markup
     flavor = telepot.flavor(msg)
@@ -66,20 +106,20 @@ def handle(msg):
                         [InlineKeyboardButton(text='Check modules', callback_data='CHECK')],
                         [InlineKeyboardButton(text='Continue and retrieve ICal', callback_data='CONTINUE')]
                         ])
-
+    print (getCal_flag, CourseCode_flag, CheckCourse_flag, ClassIndex_flag,\
+           ExtraOptions_flag, Remove_flag, Generate_flag)
+    # When user input is in text, run on_chat_message(msg)
     if flavor == "chat":
         on_chat_message(msg)
-
+    # When user input is in inlinekeyboard, run on_callbackquery(msg)
     elif flavor == "callback_query":
         on_callback_query(msg)
-
     else:
         return
 
 def on_chat_message(msg):
     global getCal_flag, CourseCode_flag, CheckCourse_flag, ClassIndex_flag,\
            ExtraOptions_flag, Remove_flag, Generate_flag
-    global Selenium_Extraction
     global ModulesName, ModulesData, ClassIndexName
     
     #Step 0: "/start" command to introduce bot to user
@@ -87,7 +127,9 @@ def on_chat_message(msg):
         bot.sendMessage(chat_id, """ Hello there! I am ICalBot, and I am here to simplify your life in NTU.
         You can use me to retrieve an electronic calendar for Your Modules (You will need to give me your course code and group index) or NTU Key Events. 
         To begin, type or click /getCal """)
-        reset_flags()
+        reset_flags(chat_id)
+        # Create "storage" space for the input/output for each user
+        reset_data(chat_id)
 
     #Step 1: "/getCal" command for options of ICal
     elif msg["text"] == "/getCal":
@@ -96,133 +138,142 @@ def on_chat_message(msg):
             [InlineKeyboardButton(text='Get ICal for NTU Key Events', callback_data='NTUEvent')]
             ])
         message_with_inline_keyboard = bot.sendMessage(chat_id, "Which ICal would you like to generate?", reply_markup=getCal_markup)
-        reset_flags()
-        getCal_flag= True
+        getCal_flag.append(chat_id)
 
     #Step 3: After receiving Course Code, check whether the retrieved data is correct
-    elif CourseCode_flag == True:
+    elif chat_id in CourseCode_flag:
         bot.sendMessage(chat_id, "Please wait for moment, this may take awhile...")
-        CourseInput = msg["text"]
-        Selenium_Extraction = timetable_extract(CourseInput)
-        if Selenium_Extraction == False:
+        CourseInput_3 = msg["text"]
+        Retrieved_Course_3 = timetable_extract(CourseInput_3) 
+        if Retrieved_Course_3 == False:
             bot.sendMessage(chat_id, "Can't find your course. Please retry: ")
-            reset_flags()
-            CourseCode_flag = True
+            reset_flags(chat_id)
+            CourseCode_flag.append(chat_id)
         else:
-            bot.sendMessage(chat_id, Selenium_Extraction[0])
+            bot.sendMessage(chat_id, Retrieved_Course_3)
+            bot.sendPhoto(chat_id, open('class_index.png', 'rb'))
             YesNo_markup = InlineKeyboardMarkup (inline_keyboard=[
                 [InlineKeyboardButton(text='Yes', callback_data='Y')],
                 [InlineKeyboardButton(text='No', callback_data='N')]
                 ])
             bot.sendMessage(chat_id, "Is this the course you are looking for? (Yes/No)", reply_markup=YesNo_markup)
-            reset_flags()
-            CheckCourse_flag = True
+            reset_flags(chat_id)
+            CheckCourse_flag.append(chat_id)
 
 
     #Step 5: After class index input, get timetable and extra options(Add,Remove,Output)
-    elif ClassIndex_flag == True:
-        try:
-            ClassInput = msg["text"]
-            timetable_extract2(Selenium_Extraction[1], ClassInput)
-            bot.sendMessage(chat_id, (Selenium_Extraction[0] + " Added."))
+    elif chat_id in ClassIndex_flag:
+        ClassInput = msg["text"]
+        index_5 = UserData(chat_id)
+        List_5 = ModulesData[index_5][-1]                   #To obtain the Alltext for user
+        print (List_5)
+        try:    
+            timetable_extract2(List_5, ClassInput) 
+            bot.sendMessage(chat_id, (ModulesName[index_5][-1] + " Added."))
             bot.sendMessage(chat_id, "Would you like to:", reply_markup=ExtraOptions_markup)
-            ClassIndexName.append(ClassInput)
+            ClassIndexName[index_5].append(ClassInput)
             print (ModulesData,ModulesName,ClassIndexName)
-            reset_flags()
-            ExtraOptions_flag = True
+            reset_flags(chat_id)
+            ExtraOptions_flag.append(chat_id)
         except:
             bot.sendMessage(chat_id, "Can't find your class index. Please retry: ")
-            reset_flags()
-            ClassIndex_flag = True
+            reset_flags(chat_id)
+            ClassIndex_flag.append(chat_id)
 
 def on_callback_query(msg):
     global getCal_flag, CourseCode_flag, CheckCourse_flag, ClassIndex_flag,\
            ExtraOptions_flag, Remove_flag, Generate_flag
     global ModulesName, ModulesData, ClassIndexName
 
-    if getCal_flag == True:
+    if chat_type in getCal_flag:
     #Step 2a: Choosing option for getting course ICal => input CourseCode
         if chat_id == "Course":
             bot.sendMessage(chat_type, "Please enter your course code/name:")
-            reset_flags()
-            CourseCode_flag = True
+            reset_flags(chat_type)
+            CourseCode_flag.append(int(chat_type))
         
     #Step 2b: Choosing option for getting ntu general ICal [End]
         elif chat_id == "NTUEvent":
             bot.sendMessage(chat_type, """All ICal for NTU Key Events are available on this website:
             http://www.ntu.edu.sg/Students/Undergraduate/AcademicServices/AcademicCalendar/Pages/AY2016-17.aspx """)
-            reset_flags()
 
-    elif CheckCourse_flag == True:
+    elif chat_type in CheckCourse_flag:
         #Step 4a: If course is correct, get class index input
         if chat_id == "Y":
-            bot.sendPhoto(chat_type, open('class_index.png', 'rb'))
             bot.sendMessage(chat_type, "Please enter your class index:")
-            reset_flags()
-            ClassIndex_flag = True
+            reset_flags(chat_type)
+            ClassIndex_flag.append(int(chat_type))
 
         #Step 4b: IF course is wrong, get another course input    
         if chat_id == "N":
             bot.sendMessage(chat_type, "Please enter your CORRECT course code:")
-            ModulesName = ModulesName[:-1]
-            reset_flags()
-            CourseCode_flag = True
+            index_4b = UserData(chat_type)                         
+            del(ModulesName[index_4b][-1])                     # Removing the CourseName and CourseData from Main LIST
+            del(ModulesData[index_4b][-1])
+            reset_flags(chat_type)
+            CourseCode_flag.append(int(chat_type))
 
-    elif ExtraOptions_flag == True:
+    elif chat_type in ExtraOptions_flag:
         #Step 6a: ADD more modules
         if chat_id == "ADD":
             bot.sendMessage(chat_type, "Please enter your course code/name:")
-            reset_flags()
-            CourseCode_flag = True
+            reset_flags(chat_type)
+            CourseCode_flag.append(int(chat_type))
 
         #Step 6b: REMOVE modules
         if chat_id == "REMOVE":
             markup_code = "InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text='Return', callback_data='NONE')],"
-            modulecounter = 0
-            for Modules in ModulesName:
-                code_segment = "[InlineKeyboardButton(text='{}', callback_data='{}')],".format(Modules,modulecounter)
+            modulecounter_6b = 0
+            index_6b = UserData(chat_type)
+            Modules_6b = ModulesName[index_6b]
+ 
+            for Module_6b in Modules_6b[1:]:
+                code_segment = "[InlineKeyboardButton(text='{}', callback_data='{}')],".format(Module_6b,modulecounter_6b)
                 markup_code = markup_code + code_segment
-                modulecounter += 1
+                modulecounter_6b += 1
             markup_code = markup_code[:-1] + "])"
             markup_code = eval (markup_code)
             bot.sendMessage(chat_type, "Which module would you like to remove?", reply_markup=markup_code)
-            reset_flags()
-            Remove_flag = True
-            
-        #Step 6c: Check Modules in list  
+            reset_flags(chat_type)
+            Remove_flag.append(int(chat_type))
+
+        #Step 6c: Check Modules in list    
         if chat_id == "CHECK":
-            ModuleNumber = len(ModulesName)
-            for N in range(0,ModuleNumber):
-                bot.sendMessage(chat_type, ("{} [Group index:{}]".format(ModulesName[N],ClassIndexName[N])))
+            index_6c = UserData(chat_type)
+            ModuleNumber_6c = len(ModulesName[index_6c]) - 1
+            for N in range(0,ModuleNumber_6c):
+                bot.sendMessage(chat_type, ("{} [Group index:{}]".format(ModulesName[index_6c][N+1],ClassIndexName[index_6c][N+1])))
             bot.sendMessage(chat_type, "Would you like to:", reply_markup=ExtraOptions_markup)
-            reset_flags()
-            ExtraOptions_flag = True
+            reset_flags(chat_type)
+            ExtraOptions_flag.append(int(chat_type))
             
         #Step6d : Export ICal
         if chat_id == "CONTINUE":
-            global ModulesData
             bot.sendMessage(chat_type, "Please wait for moment, this may take awhile...")
-            document = ICal_Generator(ModulesData)
-            bot.sendDocument(chat_type, open('calendar.ics'))
+            index_6d = UserData(chat_type)
+            ICal_Generator(ModulesData[index_6d][1:],ModulesName[index_6d][1:])
+            bot.sendDocument(chat_type, open("calendar.ics"))
             bot.sendMessage(chat_type, "Here is the ICal you wanted! If you want to obtain a different ICal, click or type /getCal")
-            reset_flags()
-            Generate_flag = True
+            reset_flags(chat_type)
+            reset_data(chat_type)
 
     #Step6bi : After Remove Module   
-    elif Remove_flag == True:
+    elif chat_type in Remove_flag:
         if chat_id == "NONE":
             bot.sendMessage(chat_type, "Would you like to:", reply_markup=ExtraOptions_markup)
-            reset_flags()
-            ExtraOptions_flag = True
+            reset_flags(chat_type)
+            ExtraOptions_flag.append(int(chat_type))
         else:
-            mod_number = int(chat_id)
-            bot.sendMessage(chat_type, (ModulesName[mod_number] + " Removed."))
-            del(ModulesData[mod_number])
-            del(ModulesName[mod_number])
-            del(ClassIndexName[mod_number])
+            mod_number = int(chat_id) + 1
+            index_6bi = UserData(chat_type)
+            bot.sendMessage(chat_type, (ModulesName[index_6bi][mod_number] + " Removed."))
+            del(ModulesData[index_6bi][mod_number])
+            del(ModulesName[index_6bi][mod_number])
+            del(ClassIndexName[index_6bi][mod_number])
             bot.sendMessage(chat_type, 'Would you like to:', reply_markup=ExtraOptions_markup)
-            reset_flags()
-            ExtraOptions_flag = True
+            reset_flags(chat_type)
+            ExtraOptions_flag.append(int(chat_type))
+
 
 # 3. Selenium Function
 ################################################################################################
@@ -230,7 +281,7 @@ def on_callback_query(msg):
 def timetable_extract(Courseinput):
     global ModulesName
     # Problem 1: driver not working (Issue of path of driver)
-    driver = webdriver.PhantomJS()                                             # Run chrome
+    driver = webdriver.Chrome()                                             # Run chrome
     driver.implicitly_wait(5)
     driver.get("https://wish.wis.ntu.edu.sg/webexe/owa/aus_schedule.main")  # Chrome go to website
     
@@ -251,20 +302,27 @@ def timetable_extract(Courseinput):
     try:
         Retrieved_Course = driver.find_element_by_tag_name("tbody")             # Find the course code and name obtained
         Retrieved_Course = (Retrieved_Course.text)
-        ModulesName.append(Retrieved_Course)                                    # Add course name to MAIN LIST
-
+        
         Alltext = []                                                            # Create empty set
-        tablecontents = driver.find_elements_by_xpath("/html/body/center/table[2]/tbody/tr/td")                  # Find element of "INDEX, TYPE, GROUP, DAY, TIME, VENUE, REMARK"
+        tablecontents = driver.find_elements_by_tag_name("TD")                  # Find element of "INDEX, TYPE, GROUP, DAY, TIME, VENUE, REMARK"
 
         for elements in tablecontents:                                          # Find each string:
             elements = elements.text                                            # Convert the retrieved element to text form
             Alltext.append(elements)                                            # Input all text into an array
-        print(Alltext)                                                      
-        print(Alltext)                                                          ## Check that list is correct
+        del(Alltext[0:5])                                                       # Remove elements that are not in the table
+##        print(Alltext)                                                          ## Check that list is correct
 
+        for UserModulesData in ModulesData:                               # Add course data/name to MAIN LIST
+            counter = 0
+            if UserModulesData[0] == chat_id:
+                ModulesData[counter].append(Alltext)
+                ModulesName[counter].append(Retrieved_Course)
+                break
+            else:
+                counter += 1
+                
         driver.quit()                                                           # End selenium
-        Selenium_Extraction = [Retrieved_Course, Alltext]
-        return Selenium_Extraction
+        return Retrieved_Course
     except:
         driver.quit()
         return False
@@ -310,112 +368,142 @@ def timetable_extract2(Alltext,Classinput):
         finallist.append(rows)
         
     #print(finallist)                                  ## Check that "newlist" is correct
-    ModulesData.append(finallist)
+    index = UserData(chat_id)
+    del(ModulesData[index][-1])
+    ModulesData[index].append(finallist)
 
-# ICAL Generator
+# 4. ICAL Generator
 #################################################################################################################
-def ICal_Generator(finallist):
-    for list in finallist:
-        First_monday = "14/8/2017" #supposed to be input value from telegram
-        dcol = 0 #initial column (course code)
-        wk = 0 #including recess wk as wk 6
-        total_wks = 13 #to equate to the input of button, if special term thn 5, norm is 13
+def ICal_Generator(finallist,finalname):
+    #open calendar.csv file
+    with open("calendar.csv", "w") as c:
+        headers = ("Subject", "StartDate", "StartTime", "EndDate", "EndTime", "AllDayEvent", "Location","Description")
+        writer = csv.DictWriter(c, fieldnames = headers)
+        writer.writeheader()
+        counter_Ical = -1                    #indicate the index for modulename
+        # For each module module added by the user
+        for Module_Ical in finallist:
+            counter_Ical += 1
 
-        #open calendar.csv file
-        with open("calendar.csv", "w") as c:
-            headers = ("Subject", "StartDate", "StartTime", "EndDate", "EndTime", "AllDayEvent", "Description", "Location")
-            writer = csv.DictWriter(c, fieldnames = headers)
-            writer.writeheader()
-    
-        #write data into calendar.csv file
-            for row in list:
-            
+            #write data into calendar.csv file
+            for row_Ical in Module_Ical:
                 #define variables here
-                subject = row[0]                #subject located at this current row and first column
-                starttime = row[4]              #start time located at this current row and column 5th
-                endtime = row[5]                #end time located at this current row and column 6th
-                alldayevent = "False"           #all day event is set to false
-                description = " Type: %s \n Group: %s \n %s" %(row[1],row[2],row[7]) #type of lession and group number is located at 2nd, 3rd, 8th column
-                location = row[6]               #location located at this current row and 7th column
-        
+                First_monday = "14/8/2017" #supposed to be input value from telegram
+                dates_list = []
+                subject = finalname[counter_Ical][:-8] + " {}".format(row_Ical[1])          #subject located at this current row and first column
+                starttime = row_Ical[4]                                                     #start time located at this current row and column 5th
+                endtime = row_Ical[5]                                                       #end time located at this current row and column 6th
+                alldayevent = "False"                                                       #all day event is set to false
+                description = " Group: %s \n %s" %(row_Ical[2],row_Ical[7])                 #type of lession and group number is located at 2nd, 3rd, 8th column
+                location = row_Ical[6]                                                      #location located at this current row and 7th column
+                
                 #----assigning values to days of wk and changing date accordingly ----#  
-                if(row[3] == str("MON")):
+                if(row_Ical[3] == str("MON")):
                     b = 0
                     date = datetime.strptime(First_monday,'%d/%m/%Y') + timedelta(days=b)
                     date = str(datetime.strftime(date, '%m/%d/%Y'))
-
-                elif(row[3] == str("TUE")):
+    
+                elif(row_Ical[3] == str("TUE")):
                     b = 1
                     date = datetime.strptime(First_monday,'%d/%m/%Y') + timedelta(days=b)
                     date = str(datetime.strftime(date, '%m/%d/%Y'))
 
-                elif(row[3] == str("WED")):
+                elif(row_Ical[3] == str("WED")):
                     b = 2
                     date = datetime.strptime(First_monday,'%d/%m/%Y') + timedelta(days=b)
                     date = str(datetime.strftime(date, '%m/%d/%Y'))
 
-                elif(row[3] == str("THU")):
+                elif(row_Ical[3] == str("THU")):
                     b = 3
                     date = datetime.strptime(First_monday,'%d/%m/%Y') + timedelta(days=b)
                     date = str(datetime.strftime(date, '%m/%d/%Y'))
                 
-                elif(row[3] == str("FRI")):
+                elif(row_Ical[3] == str("FRI")):
                     b = 4
                     date = datetime.strptime(First_monday,'%d/%m/%Y') + timedelta(days=b)
                     date = str(datetime.strftime(date, '%m/%d/%Y'))
-                ### What about lesson on weekend?
-                #----assigning values to days of wk and changing date accordingly ---- #
+
+                elif(row_Ical[3] == str("SAT")):
+                    b = 5
+                    date = datetime.strptime(First_monday,'%d/%m/%Y') + timedelta(days=b)
+                    date = str(datetime.strftime(date, '%m/%d/%Y'))
 
                 #----while loop to print/insert all possible dates into array----#
-                dates_list = [date]
+                wk_segment = row_Ical[7]
+                if wk_segment == "":
+                    total_wk = range(0,13)
+                else:
+                    # Recall in this code, value wk 0 is representing actual wk 1 and wk cap is 12
+                    total_wk = []                                   # To input the int value of week with lesson
+                    wk_segment = wk_segment.replace("Wk","")        # Remove the "Wk" in the string
+                    wk_segment = wk_segment.split(",")
+                    for segment_counter in range(0,len(wk_segment)):
+                        if "-" in wk_segment[segment_counter]:
+                            segment_Ical = wk_segment[segment_counter].split("-")
+                            start_segment = int(segment_Ical[0]) - 1
+                            end_segment = int(segment_Ical[1])
+                            range_Ical = range(start_segment,end_segment)                                
+                            for each_wk in range_Ical:
+                                total_wk.append((each_wk))
+                        else:
+                            total_wk.append((int(wk_segment[segment_counter]))-1)
 
+                print("POTATO")
+                print(total_wk)
+                 
                 for wk in range(0,13):
                     if(wk != 6):
+                        if wk in total_wk:
+                            dates_list.append(date)
+                            print(dates_list)
                         date = datetime.strptime(date,'%m/%d/%Y') + timedelta(days=7)
                         date = str(datetime.strftime(date, '%m/%d/%Y'))
-                        dates_list.append(date)
-                        print(dates_list)
+
                     else:
+                        if wk in total_wk:
+                            dates_list.append(date)
+                            print(dates_list)
                         date = datetime.strptime(date,'%m/%d/%Y') + timedelta(days=14)
                         date = str(datetime.strftime(date, '%m/%d/%Y'))
-                        dates_list.append(date)
-                        print(dates_list)
-
-
         
-                #----while loop to print/insert all possible dates into array----#
-                for dcol in range(0,13):
+                    #----while loop to print/insert all possible dates into array----#
+                for dcol in range(0,len(total_wk)):
                     start_end_date = dates_list[dcol]
                     writer.writerow({"Subject" : subject, "StartDate" : start_end_date , "StartTime" : starttime , \
                                      "EndDate" : start_end_date , "EndTime" : endtime , "AllDayEvent" : alldayevent , \
-                                     "Description" : description, "Location" : location })
+                                     "Description" : description, "Location" : location})
 
+        
+    # Create a list for data in csv
+    convert.read_csv()
+    # convert.csv_data is the returned value(list) of convert.read_csv
+    print (convert.csv_data)
 
-        convert.read_csv()
-        print (convert.csv_data)
+    # To remove headings
+    CSV_Data = convert.csv_data
+    del(CSV_Data[0])
+    CSV_NEWData = []
+    for CSV_Row in CSV_Data:
+        # Filter out empty list
+        if CSV_Row != []:
+            # Order should be [EVENTNAME, START_DATE, END_DATE, DESCRIPTION, LOCATION]
+            CSVstart_date = str(CSV_Row[1]) + '-'+ str(CSV_Row[2])
+            CSVend_date = str(CSV_Row[1]) + '-' + str(CSV_Row[4])
+            CSVstart_date = datetime.strptime(CSVstart_date, '%m/%d/%Y-%H:%M')
+            CSVend_date = datetime.strptime(CSVend_date, '%m/%d/%Y-%H:%M')
+            CSVname = CSV_Row[0]
+            CSV_NEWData.append([CSVname,CSVstart_date,CSVend_date,\
+                                CSV_Row[7],CSV_Row[6]])
 
-        i = 0
-        while i < len(convert.csv_data):
-            row = convert.csv_data[i]
-            start_date = str(row[1]) + '-'+ str(row[convert.START_DATE])
-            end_date = str(row[1]) + '-' + str(row[convert.END_DATE])
-            try:
-                row[convert.START_DATE] = datetime.strptime(start_date, '%m/%d/%Y-%H:%M')
-                row[convert.END_DATE] = datetime.strptime(end_date, '%m/%d/%Y-%H:%M')
-                i += 1
-                #print("Added something")            #Debug print test
-            except:
-                convert.csv_data.pop(i)
-                #print('popped')                     #Debug print test
-            row[convert.NAME] = 'Class '+row[convert.NAME]
+    convert.csv_data = CSV_NEWData
+    convert.make_ical()
+    #print (convert.cal)                        #Debug check for ical file
+    convert.save_ical()
 
-        convert.make_ical()
-        #print (convert.cal)                        #Debug check for ical file
-        convert.save_ical()
 
 # Telebot Function 2
 ################################################################################################
-Token = "388718978:AAEUppjISCz8eVq_j3b8owag04-E95y1PRk"             # Token from command line
+Token = "477217717:AAEY9hYjc2RDE4nXeOd8VBeYBP_kgX43-lA"             # Token from command line
 bot = telepot.Bot(Token)
 MessageLoop(bot, handle).run_as_thread()
 
@@ -423,3 +511,4 @@ print ('Listening ...')
 
 while 1:                                                            # Keep the program running.
     time.sleep(10)
+            

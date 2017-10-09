@@ -6,7 +6,7 @@
 # 1.
 # Limitation:
 # 1) The bot can only work on this Semester
-#Improvements: Working for other modules from other schools (like LG9001)
+# Improvements: Working for other modules from other schools (like LG9001)
 #########################################################################
 
 import sys
@@ -16,7 +16,6 @@ import time
 import telepot
 from telepot.loop import MessageLoop
 from telepot.namedtuple import InlineKeyboardMarkup, InlineKeyboardButton
-
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException 
 import numpy as np
@@ -96,11 +95,12 @@ def reset_data(chat_id_RD):
 def handle(msg):
     global ModulesName, ModulesData, ClassIndexName
     global content_type, chat_type, chat_id, flavor
-    global ExtraOptions_markup
+    global ExtraOptions_markup, return_markup
     flavor = telepot.flavor(msg)
     content_type, chat_type, chat_id = telepot.glance(msg, flavor=flavor)
     summary = (flavor, content_type, chat_type, chat_id )
     print (summary)
+    return_markup = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text='Return to Settings', callback_data='NONE')]])
     ExtraOptions_markup = InlineKeyboardMarkup(inline_keyboard=[
                         [InlineKeyboardButton(text='Add modules', callback_data='ADD')],
                         [InlineKeyboardButton(text='Remove modules', callback_data='REMOVE')],
@@ -126,8 +126,11 @@ def on_chat_message(msg):
     #Step 0: "/start" command to introduce bot to user
     if msg["text"] == "/start":
         bot.sendMessage(chat_id, """ Hello there! I am ICalBot, and I am here to simplify your life in NTU.
-        You can use me to retrieve an electronic calendar for Your Modules (You will need to give me your course code and group index) or NTU Key Events. 
-        To begin, type or click /getCal """)
+You can use me to retrieve an electronic calendar for Your Modules (You will need to give me your course code and group index) or NTU Key Events. 
+May TheForce be with you.
+
+To begin, click /getCal
+click /help for more information """)
         reset_flags(chat_id)
         # Create "storage" space for the input/output for each user
         reset_data(chat_id)
@@ -140,15 +143,35 @@ def on_chat_message(msg):
             ])
         message_with_inline_keyboard = bot.sendMessage(chat_id, "Which ICal would you like to generate?", reply_markup=getCal_markup)
         getCal_flag.append(chat_id)
+        
+    #Step -1: "/reset" command to reset data and values
+    elif msg["text"] == "/reset":
+        bot.sendMessage(chat_id, "All data has been reset. Please type /getCal if you would like to begin once again")
+        reset_data(chat_id)
+        reset_flags(chat_id)
+        
+    #Step -2: "/help" to provide more commands
+    elif msg["text"] == "/help":
+        bot.sendMessage(chat_id, """ NTU_ICal_Bot is pretty easy to use, just follow the instructions!
 
+Type /getCal if you would like to obtain an ICal
+Type /reset if you accidentally end up the wrong place AND would like to remove all modules""")
+        
     #Step 3: After receiving Course Code, check whether the retrieved data is correct
     elif chat_id in CourseCode_flag:
         bot.sendMessage(chat_id, "Please wait for moment, this may take awhile...")
         CourseInput_3 = msg["text"]
         Retrieved_Course_3 = timetable_extract(CourseInput_3) 
         if Retrieved_Course_3 == False:
-            bot.sendMessage(chat_id, "Can't find your course. Please retry: ")
+            bot.sendMessage(chat_id, "Can't find your course. Please retry: ", reply_markup=return_markup)
             reset_flags(chat_id)
+            Remove_flag.append(chat_id)
+            CourseCode_flag.append(chat_id)
+        elif Retrieved_Course_3 == True:
+            bot.sendMessage(chat_id, """This module is an online course, thus there is no input for the timetable(aren't you glad).
+Please select another module:""", reply_markup=return_markup)
+            reset_flags(chat_id)
+            Remove_flag.append(chat_id)
             CourseCode_flag.append(chat_id)
         else:
             bot.sendMessage(chat_id, Retrieved_Course_3)
@@ -196,7 +219,7 @@ def on_callback_query(msg):
     #Step 2b: Choosing option for getting ntu general ICal [End]
         elif chat_id == "NTUEvent":
             bot.sendMessage(chat_type, """All ICal for NTU Key Events are available on this website:
-            http://www.ntu.edu.sg/Students/Undergraduate/AcademicServices/AcademicCalendar/Pages/AY2016-17.aspx """)
+http://www.ntu.edu.sg/Students/Undergraduate/AcademicServices/AcademicCalendar/Pages/AY2016-17.aspx """)
 
     elif chat_type in CheckCourse_flag:
         #Step 4a: If course is correct, get class index input
@@ -217,8 +240,9 @@ def on_callback_query(msg):
     elif chat_type in ExtraOptions_flag:
         #Step 6a: ADD more modules
         if chat_id == "ADD":
-            bot.sendMessage(chat_type, "Please enter your course code/name:")
+            bot.sendMessage(chat_type, "Please enter your course code/name:",reply_markup=return_markup)
             reset_flags(chat_type)
+            Remove_flag.append(int(chat_type))
             CourseCode_flag.append(int(chat_type))
 
         #Step 6b: REMOVE modules
@@ -242,6 +266,8 @@ def on_callback_query(msg):
         if chat_id == "CHECK":
             index_6c = UserData(chat_type)
             ModuleNumber_6c = len(ModulesName[index_6c]) - 1
+            if ModuleNumber_6c == 0:
+                bot.sendMessage(chat_type, "No modules added.")
             for N in range(0,ModuleNumber_6c):
                 bot.sendMessage(chat_type, ("{} [Group index:{}]".format(ModulesName[index_6c][N+1],ClassIndexName[index_6c][N+1])))
             bot.sendMessage(chat_type, "Would you like to:", reply_markup=ExtraOptions_markup)
@@ -254,7 +280,7 @@ def on_callback_query(msg):
             index_6d = UserData(chat_type)
             ICal_Generator(ModulesData[index_6d][1:],ModulesName[index_6d][1:])
             bot.sendDocument(chat_type, open("calendar.ics"))
-            bot.sendMessage(chat_type, "Here is the ICal you wanted! If you want to obtain a different ICal, click or type /getCal")
+            bot.sendMessage(chat_type, """Here is the ICal you wanted! If you want to obtain a different ICal, click or type /getCal""")
             reset_flags(chat_type)
             reset_data(chat_type)
 
@@ -301,8 +327,9 @@ def timetable_extract(Courseinput):
     driver.save_screenshot('class_index.png')
     #@@@@@assert "Class Schedule" in driver.title@@@@@@@
     try:
-        Retrieved_Course = driver.find_element_by_tag_name("tbody")             # Find the course code and name obtained
-        Retrieved_Course = (Retrieved_Course.text)
+        Retrieved_Course1 = driver.find_element_by_xpath("/html/body/center/table[1]/tbody/tr[1]/td[1]/b/font")             # Find the course code and name obtained
+        Retrieved_Course2 = driver.find_element_by_xpath("/html/body/center/table[1]/tbody/tr[1]/td[2]/b/font")
+        Retrieved_Course = (Retrieved_Course1.text) + " " + (Retrieved_Course2.text)
         
         Alltext = []                                                            # Create empty set
         tablecontents = driver.find_elements_by_xpath("/html/body/center/table[2]/tbody/tr/td")                  # Find element of "INDEX, TYPE, GROUP, DAY, TIME, VENUE, REMARK"
@@ -310,19 +337,24 @@ def timetable_extract(Courseinput):
         for elements in tablecontents:                                          # Find each string:
             elements = elements.text                                            # Convert the retrieved element to text form
             Alltext.append(elements)                                            # Input all text into an array
-##        print(Alltext)                                                          ## Check that list is correct
+        print(Alltext)                                                          ## Check that list is correct
 
-        for UserModulesData in ModulesData:                               # Add course data/name to MAIN LIST
-            counter = 0
-            if UserModulesData[0] == chat_id:
-                ModulesData[counter].append(Alltext)
-                ModulesName[counter].append(Retrieved_Course)
-                break
-            else:
-                counter += 1
+        if Alltext[6] == "Online Course":                                       # To filter out Online Courses
+            driver.quit()
+            return True
+        
+        else:
+            for UserModulesData in ModulesData:                               # Add course data/name to MAIN LIST
+                counter = 0
+                if UserModulesData[0] == chat_id:
+                    ModulesData[counter].append(Alltext)
+                    ModulesName[counter].append(Retrieved_Course)
+                    break
+                else:
+                    counter += 1
                 
-        driver.quit()                                                           # End selenium
-        return Retrieved_Course
+            driver.quit()                                                           # End selenium
+            return Retrieved_Course
     except:
         driver.quit()
         return False
@@ -350,12 +382,12 @@ def timetable_extract2(Alltext,Classinput):
         if (row[0] == ""):                          # If first column is empty, then carry out:
             newlist.append(row)                     # Move row to "newlist"
         elif (row[0] != ""):                        # If first colum is not empty, stop loop
-            break
+            break   
 
     for rows in newlist:
         rows[0] = newlist[0][0]
         TIME = rows[4]
-    
+        
         TIME = TIME.split("-")
         StartTime = TIME[0]
         StartTime = str(StartTime[0:2]) + ":" + str(StartTime[2:4])
@@ -371,6 +403,7 @@ def timetable_extract2(Alltext,Classinput):
     index = UserData(chat_id)
     del(ModulesData[index][-1])
     ModulesData[index].append(finallist)
+
 
 # 4. ICAL Generator
 #################################################################################################################
@@ -390,7 +423,7 @@ def ICal_Generator(finallist,finalname):
                 #define variables here
                 First_monday = "14/8/2017" #supposed to be input value from telegram
                 dates_list = []
-                subject = finalname[counter_Ical][:-8] + " {}".format(row_Ical[1])          #subject located at this current row and first column
+                subject = finalname[counter_Ical] + " {}".format(row_Ical[1])          #subject located at this current row and first column
                 starttime = row_Ical[4]                                                     #start time located at this current row and column 5th
                 endtime = row_Ical[5]                                                       #end time located at this current row and column 6th
                 alldayevent = "False"                                                       #all day event is set to false
@@ -503,7 +536,7 @@ def ICal_Generator(finallist,finalname):
 
 # Telebot Function 2
 ################################################################################################
-Token = "388718978:AAEUppjISCz8eVq_j3b8owag04-E95y1PRk"             # Token from command line
+Token = "477217717:AAEY9hYjc2RDE4nXeOd8VBeYBP_kgX43-lA"             # Token from command line
 bot = telepot.Bot(Token)
 MessageLoop(bot, handle).run_as_thread()
 

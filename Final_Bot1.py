@@ -522,8 +522,8 @@ def ICal_Generator(finallist,finalname):
             # Order should be [EVENTNAME, START_DATE, END_DATE, DESCRIPTION, LOCATION]
             CSVstart_date = str(CSV_Row[1]) + '-'+ str(CSV_Row[2])
             CSVend_date = str(CSV_Row[1]) + '-' + str(CSV_Row[4])
-            CSVstart_date = datetime.strptime(CSVstart_date, '%m/%d/%Y-%H:%M')
-            CSVend_date = datetime.strptime(CSVend_date, '%m/%d/%Y-%H:%M')
+            CSVstart_date = datetime.strptime(CSVstart_date, '%m/%d/%Y-%H:%M:%S')
+            CSVend_date = datetime.strptime(CSVend_date, '%m/%d/%Y-%H:%M:%S')
             CSVname = CSV_Row[0]
             CSV_NEWData.append([CSVname,CSVstart_date,CSVend_date,\
                                 CSV_Row[7],CSV_Row[6]])

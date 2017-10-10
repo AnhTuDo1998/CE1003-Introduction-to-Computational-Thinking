@@ -34,6 +34,7 @@ class Convert():
                 continue
             self.csv_data.append(row)
         return self.csv_data
+        csv_reader.close()
         
     # Make iCal entries
     #
@@ -47,11 +48,10 @@ class Convert():
             event.add('location', row[self.LOCATION])
             self.cal.add_component(event)
         return self.cal
-        print (cal)
         
     # Save the calendar instance to a file
     #
-    def save_ical(self):
+    def save_ical(self): 
         f = open(self.SAVE_LOCATION, 'wb')
         f.write(self.cal.to_ical())
         f.close()

@@ -193,7 +193,8 @@ Please select another module:""", reply_markup=return_markup)
             print (ModulesData,ModulesName,ClassIndexName)
             reset_flags(chat_id)
             ExtraOptions_flag.append(chat_id)
-        except:
+        except Exception as e:
+            print (e)
             bot.sendMessage(chat_id, "Can't find your class index. Please retry: ")
             reset_flags(chat_id)
             ClassIndex_flag.append(chat_id)

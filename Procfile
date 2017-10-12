@@ -1,1 +1,1 @@
-worker: python Almost_FinalFinalFinalBot.py
+worker: python FinalBot_Heroku.py

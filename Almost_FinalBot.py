@@ -625,7 +625,7 @@ def ICal_Generator(finallist_Ical, finalname_Ical, chat_type_Ical):
 # Telebot Function 2
 ################################################################################################
 # Token from command line
-Token = "477217717:AAEY9hYjc2RDE4nXeOd8VBeYBP_kgX43-lA"
+Token = "388718978:AAEUppjISCz8eVq_j3b8owag04-E95y1PRk"
 bot = telepot.Bot(Token)
 # run the code with a new telegram message is received
 MessageLoop(bot, handle).run_as_thread()
